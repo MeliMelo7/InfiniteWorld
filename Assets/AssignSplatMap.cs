@@ -60,7 +60,7 @@ public class AssignSplatMap : MonoBehaviour {
 					splatWeights[6] = Mathf.Clamp01(steepness/(terrainData.heightmapHeight/5.0f));
 
 					//if altitude greater than 10% of the map height
-					if(height > terrainData.heightmapHeight/5)
+					if(height > terrainData.heightmapHeight/10)
 					{
                         if(height < terrainData.heightmapHeight/50)
                         {

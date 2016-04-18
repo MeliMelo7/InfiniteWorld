@@ -120,7 +120,7 @@ public class HeightmapGen : MonoBehaviour {
 		//create the terrain
 		myTerrain = Terrain.CreateTerrainGameObject(tData);
 		myTerrain.transform.position = new Vector3(-250f, 0f, -250f);
-        myTerrain.AddComponent<AssignSplatMap>();
+        myTerrain.AddComponent<CreateSplatmapScript>();
         myTerrain.GetComponent<Terrain>().materialType = Terrain.MaterialType.Custom;
         myTerrain.GetComponent<Terrain>().materialTemplate = terrainMat;
 
