@@ -1,5 +1,6 @@
 ﻿ using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEditor;
 using System;
 
@@ -20,6 +21,8 @@ public class HeightmapGen : MonoBehaviour {
 	private int j = 0;
 	public Texture2D[] terrainTex;
     public Texture2D[] terrainNormals;
+    public Texture2D grassTexture;
+    public Texture2D flowerTexture;
 	public int passes = 2;
 	public float amplitude = 1.0F;  //terrain height
 	private float previousAmplitude = 1.0F;
@@ -47,6 +50,7 @@ public class HeightmapGen : MonoBehaviour {
 		tData.SetDetailResolution(512, 8);
 		HeightMap = tData.GetHeights(0, 0, tData.heightmapWidth, tData.heightmapHeight); //set the HeightMap tab to make it correspond to the actual height tab for our terrain
         float lowestValue = 500f;
+        
 
         
         for (int i = 0; i < passes; i++)
@@ -57,8 +61,8 @@ public class HeightmapGen : MonoBehaviour {
                 int x = 0;
                 while (x < tData.heightmapWidth)
                 {
-                    float xCoord = Convert.ToSingle(x) / Convert.ToSingle(tData.heightmapWidth - 1); //need to convert everything to float in order for the Perling Noise function to work
-                    float yCoord = Convert.ToSingle(y) / Convert.ToSingle(tData.heightmapHeight - 1); // same
+                    float xCoord = (Convert.ToSingle(x) + xOrg) / Convert.ToSingle(tData.heightmapWidth - 1); //need to convert everything to float in order for the Perling Noise function to work
+                    float yCoord = (Convert.ToSingle(y) + yOrg) / Convert.ToSingle(tData.heightmapHeight - 1); // same
                     float sample = Mathf.PerlinNoise(xCoord * frequencies[i] * frequency, yCoord * frequencies[i] * frequency); //generate height value for a vertex of the terrain with the Perlin Noise function
                     HeightMap[x, y] += sample * weights[i] * amplitude; //put the generated value in the corresponding table of heights
                     if(i == (passes - 1))
@@ -82,7 +86,6 @@ public class HeightmapGen : MonoBehaviour {
             while (x < tData.heightmapWidth)
             {
                 HeightMap[x, q] = HeightMap[x, q] - lowestValue;//put the generated value in the corresponding table of heights
-                //Debug.Log(HeightMap[x, p]);
                 x++;
             }
             q++;
@@ -94,7 +97,7 @@ public class HeightmapGen : MonoBehaviour {
             {
                 if (HeightMap[coordx, coordy] < 0.4f)
                 {
-                    HeightMap[coordx, coordy] = SurroundingAverage(coordx, coordy);
+                    HeightMap[coordx, coordy] = SurroundingAverageInRange(coordx, coordy, 5);
                 }
             }
         }
@@ -114,13 +117,15 @@ public class HeightmapGen : MonoBehaviour {
 		
 		tData.splatPrototypes = tex;
 
-		//create the terrain data object as an asset
-		AssetDatabase.CreateAsset(tData, "Assets/testTerrain.asset");
+        //create the terrain data object as an asset
+        AssetDatabase.CreateAsset(tData, "Assets/testTerrain.asset");
 
-		//create the terrain
-		myTerrain = Terrain.CreateTerrainGameObject(tData);
-		myTerrain.transform.position = new Vector3(-250f, 0f, -250f);
+        //create the terrain
+        myTerrain = Terrain.CreateTerrainGameObject(tData);
+        myTerrain.transform.position = new Vector3(-250f, 0f, -250f);
         myTerrain.AddComponent<CreateSplatmapScript>();
+        myTerrain.GetComponent<CreateSplatmapScript>().grassTexture = grassTexture;
+        myTerrain.GetComponent<CreateSplatmapScript>().flowerTexture = flowerTexture;
         myTerrain.GetComponent<Terrain>().materialType = Terrain.MaterialType.Custom;
         myTerrain.GetComponent<Terrain>().materialTemplate = terrainMat;
 
@@ -177,6 +182,60 @@ public class HeightmapGen : MonoBehaviour {
             divider += 2;
         }
 
+        return (surroudingsAverage / divider);
+    }
+
+    //average surrounding heights in a range
+    float SurroundingAverageInRange(int x, int y, int range)
+    {
+        float surroudingsAverage = HeightMap[x, y];
+        int divider = 1;
+        
+        for(int itY = 0; itY < range + 1; itY++)
+        {
+            if((y + itY) <= (tData.heightmapHeight - 1))
+            {
+                for (int itX = 0; itX < range + 1; itX++)
+                {
+                    if ((itX + itY) <= range)
+                    {
+                        if ((x - itX) >= 0)
+                        {
+                            surroudingsAverage += HeightMap[x - itX, y + itY];
+                            divider += 1;
+                        }
+                        if ((x + itX) <= (tData.heightmapWidth - 1))
+                        {
+                            surroudingsAverage += HeightMap[x + itX, y + itY];
+                            divider += 1;
+                        }
+                    }
+                }
+            }
+
+            if ((y - itY) >= 0)
+            {
+                for (int itX = 0; itX < range + 1; itX++)
+                {
+                    if ((itX + itY) <= range)
+                    {
+                        if ((x - itX) >= 0)
+                        {
+                            surroudingsAverage += HeightMap[x - itX, y - itY];
+                            divider += 1;
+                        }
+                        if ((x + itX) <= (tData.heightmapWidth - 1))
+                        {
+                            surroudingsAverage += HeightMap[x + itX, y - itY];
+                            divider += 1;
+                        }
+                    }
+                }
+            }
+
+
+        }
+    
         return (surroudingsAverage / divider);
     }
 }

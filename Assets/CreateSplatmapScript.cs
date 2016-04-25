@@ -1,8 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;  //used for Sum of array
 
-public class CreateSplatmapScript : MonoBehaviour {
+public class CreateSplatmapScript : MonoBehaviour
+{
+
+    public Texture2D grassTexture;
+    public Texture2D flowerTexture;
+    public float limitGrass = 0.6f;
 
 	// Use this for initialization
 	void Start ()
@@ -12,6 +18,8 @@ public class CreateSplatmapScript : MonoBehaviour {
 
         // Get a reference to the terrain data
         TerrainData terrainData = terrain.terrainData;
+        Debug.Log("Terrain Height : " + terrainData.size.y);
+        Debug.Log("terraindata height : " + terrainData.heightmapHeight);
 
         // Splatmap data is stored internally as a 3d array of floats, so declare a new empty array ready for your custom splatmap data:
         float[,,] splatmapData = new float[terrainData.alphamapWidth, terrainData.alphamapHeight, terrainData.alphamapLayers];
@@ -57,9 +65,9 @@ public class CreateSplatmapScript : MonoBehaviour {
                     splatWeights[6] = Mathf.Clamp01(steepness / (terrainData.heightmapHeight / 5.0f));
 
                     //if altitude greater than 10% of the map height
-                    if (height > terrainData.heightmapHeight / 10)
+                    if (height > terrainData.size.y / 10)
                     {
-                        if (height < (terrainData.heightmapHeight / 10) + (terrainData.heightmapHeight / 20))
+                        if (height < (terrainData.size.y / 10) + (terrainData.size.y / 10))
                         {
                             splatWeights[4] = height * 0.5f * Random.Range(0.3f, 1.0f) / (steepness * 1.5f);
                         }
@@ -95,8 +103,52 @@ public class CreateSplatmapScript : MonoBehaviour {
                     // Assign this point to the splatmap array
                     splatmapData[x, y, i] = splatWeights[i];
                 }
+
             }
         }
+
+        //add some grass to the terrain where the grass ground texture is greater than limitGrass
+        int[,] grassDetailMap = new int[terrainData.heightmapWidth, terrainData.heightmapHeight];
+        int[,] flowerDetailMap = new int[terrainData.heightmapWidth, terrainData.heightmapHeight];
+        DetailPrototype grassPrototype = new DetailPrototype();
+        DetailPrototype flowerPrototype = new DetailPrototype();
+        grassPrototype.renderMode = DetailRenderMode.GrassBillboard;
+        grassPrototype.prototypeTexture = grassTexture;
+        flowerPrototype.renderMode = DetailRenderMode.GrassBillboard;
+        flowerPrototype.prototypeTexture = flowerTexture;
+        DetailPrototype[] terrainDetailPrototypes = terrainData.detailPrototypes;
+        List<DetailPrototype> prototypesList = new List<DetailPrototype>();
+        for (int i = 0; i < terrainDetailPrototypes.Length; i++)
+        {
+            prototypesList.Add(terrainDetailPrototypes[i]);
+        }
+        prototypesList.Add(grassPrototype);
+        prototypesList.Add(flowerPrototype);
+
+        DetailPrototype[] terrainProto = prototypesList.ToArray();
+        terrainData.detailPrototypes = terrainProto;
+
+
+        for (int yIt = 0; yIt < terrainData.alphamapHeight; yIt++)
+        {
+            for (int xIt = 0; xIt < terrainData.alphamapWidth; xIt++)
+            {
+                if(splatmapData[xIt, yIt, 0] > limitGrass)
+                {
+                    grassDetailMap[xIt, yIt] = 1;
+                    flowerDetailMap[xIt, yIt] = Random.Range(0, 2);                   
+                }
+                else
+                {
+                    grassDetailMap[xIt, yIt] = 0;
+                    flowerDetailMap[xIt, yIt] = 0;
+                }
+                
+            }
+        }
+        terrainData.SetDetailLayer(0, 0, 0, grassDetailMap);
+        terrainData.SetDetailLayer(0, 0, 1, flowerDetailMap);
+
 
         // Finally assign the new splatmap to the terrainData:
         terrainData.SetAlphamaps(0, 0, splatmapData);
